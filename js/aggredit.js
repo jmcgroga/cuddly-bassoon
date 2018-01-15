@@ -24,6 +24,19 @@ class AggrEdit {
         this.editorIds = null;
     }
 
+    loadPlugin(jsFile) {
+        return new Promise((resolve, reject) => {
+            $j.getScript(jsFile)
+                .done(function(script, textStatus) {
+                    initPlugin(this);
+                    resolve();
+                }.bind(this))
+                .fail(function( jqxhr, settings, exception ) {
+                    reject(exception);
+                });
+        });
+    }
+
     isCommand(str) {
         return $j.inArray(str, this.commands) >= 0;
     }
@@ -45,7 +58,7 @@ class AggrEdit {
                         this.save();
                         break;
                     case 'load':
-                        this.load('default');
+                        this.load();
                         break;
                     default:
                         if (this.isCreateCommand(command)) {

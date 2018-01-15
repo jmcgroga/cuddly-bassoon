@@ -1,4 +1,4 @@
-function default_commands(aggrEdit) {
+function initPlugin(aggrEdit) {
     aggrEdit.registerCreateEditorCommand('text');
     aggrEdit.registerCreateEditorCommand('requirements',
                                          null,
