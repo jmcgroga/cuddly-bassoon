@@ -2,7 +2,7 @@ function initPlugin(aggrEdit) {
     aggrEdit.registerCreateEditorCommand('text');
     aggrEdit.registerCreateEditorCommand('requirements',
                                          null,
-                                         function(quill, contents) {
+                                         function(quill, contents, commandObj) {
                                              quill.formatLine(0, 1, 'list', 'bullet');
                                          },
                                          true);

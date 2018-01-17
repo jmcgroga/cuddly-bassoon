@@ -6,6 +6,8 @@ class AggrEdit {
             'load'
         ];
 
+        this.commandRegExp = RegExp(/([^\s]+)\s?(.*)/);
+
         this.documentsAPI = "/aggredit/api/documents";
         this.uuidsAPI = "/aggredit/api/uuids";
 
@@ -37,20 +39,40 @@ class AggrEdit {
         });
     }
 
-    isCommand(str) {
-        return $j.inArray(str, this.commands) >= 0;
+    parseCommand(str) {
+        var parsed = this.commandRegExp.exec(str),
+            command = '',
+            parameters = '';
+
+        if (parsed !== null) {
+            command = parsed[1];
+            if (parsed[2]) {
+                parameters = parsed[2];
+            }
+        }
+
+        return { command: command,
+                 parameters: parameters };
     }
 
-    isCreateCommand(str) {
-        return typeof this.createEditorCommands[str] !== 'undefined';
+    processCommand(str) {
+        var commandObj = this.parseCommand(str),
+            command = commandObj.command;
+
+        commandObj.isCommand = (command != '') && ($j.inArray(command, this.commands) >= 0);
+        commandObj.isCreateCommand = (command != '') && (typeof this.createEditorCommands[command] !== 'undefined');
+
+        return commandObj;
     }
 
     configureCommandElement() {
         $j('#command').keypress(function(e) {
             if (e.which == 13) {
-                var command = $j('#command').val();
+                var commandStr = $j('#command').val(),
+                    commandObj = this.processCommand(commandStr),
+                    command = commandObj.command;
 
-                if (this.isCommand(command)) {
+                if (commandObj.isCommand) {
                     $j('#command').val('');
                     $j('#footer').hide();
                     switch (command) {
@@ -61,14 +83,14 @@ class AggrEdit {
                         this.load();
                         break;
                     default:
-                        if (this.isCreateCommand(command)) {
-                            this.createQuill(command);
+                        if (commandObj.isCreateCommand) {
+                            this.createQuill(command, commandObj);
                         } else {
-                            this.commandFunctions[command](this);
+                            this.commandFunctions[command](this, commandObj);
                         }
                     }
                 } else {
-                    $j('#command').val('Invalid command: ' + command);
+                    $j('#command').val('Invalid command: ' + commandStr);
                 }
                 
                 if (this.focused) {
@@ -150,19 +172,19 @@ class AggrEdit {
         return this.createEditorCommands[command];
     }
 
-    createQuill(command) {
+    createQuill(command, commandObj) {
         return new Promise((resolve, reject) => {
             var config = this.getEditorCommandConfig(command);
 
             if (this.editorIds && (this.editorIds.length > 0)) {
                 var editorId = this.editorIds.pop();
-                this._addQuill(editorId, config);
+                this._addQuill(editorId, config, null, commandObj);
                 resolve();
             } else {
                 $j.getJSON(this.uuidsAPI, function(data) {
                     this.editorIds = data['uuids'];
                     var editorId = this.editorIds.pop();
-                    this._addQuill(editorId, config);
+                    this._addQuill(editorId, config, null, commandObj);
                     resolve();
                 }.bind(this))
                     .fail(function() {
@@ -182,14 +204,14 @@ class AggrEdit {
                         this.editorIds.reverse();
                         
                         var editorId = this.editorIds.pop();
-                        this._addQuill(editorId, config);
+                        this._addQuill(editorId, config, null, commandObj);
                         resolve();
                     }.bind(this));
             }
         });
     }
 
-    _addQuill(editorId, config, contents) {
+    _addQuill(editorId, config, contents, commandObj) {
         var editorContainer,
             editorControl,
             nextEditorId,
@@ -218,7 +240,7 @@ class AggrEdit {
 
         // Execute preCreate
         if (config.preCreate) {
-            config.preCreate();
+            config.preCreate(commandObj);
         }
 
         // Create the Quill object in editorContainer
@@ -239,7 +261,7 @@ class AggrEdit {
 
         // Execute postCreate
         if (config.postCreate) {
-            config.postCreate(quill, contents);
+            config.postCreate(quill, contents, commandObj);
         }
 
         // Get the Quill editor and set the border
